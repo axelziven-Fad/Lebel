@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Label Sampel MBG - SPPG Panjatan 2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #e2e8f0; }
+
+    /* Dynamic Theme Color Variables (Default: Jingga / Amber) */
+    :root {
+      --primary: #d97706;
+      --primary-hover: #b45309;
+      --primary-light: #fef3c7;
+      --primary-border: #f59e0b;
+      --primary-text: #92400e;
+    }
+
+    .theme-bg { background-color: var(--primary) !important; }
+    .theme-border { border-color: var(--primary-border) !important; }
+    .theme-bg-light { background-color: var(--primary-light) !important; }
+    .theme-text { color: var(--primary-text) !important; }
+
+    /* Container Kertas A4 Utuh (210mm x 297mm) */
+    .a4-page {
+      width: 210mm;
+      height: 297mm;
+      background: white;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+      margin: auto;
+      position: relative;
+      box-sizing: border-box;
+      overflow: hidden;
+      border-radius: 4px;
+    }
+
+    /* Area Kiri (1/2 HVS: 105mm x 297mm) */
+    .left-half {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 105mm;
+      height: 297mm;
+      box-sizing: border-box;
+      padding: 6mm 8mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Garis Potong Putus-putus Tegak di Tengah Kertas (105mm dari kiri) */
+    .cut-line {
+      position: absolute;
+      left: 105mm;
+      top: 0;
+      bottom: 0;
+      border-left: 1.5px dashed #94a3b8;
+      z-index: 10;
+    }
+
+    /* Simbol Gunting Indikator Potong */
+    .scissors-top {
+      position: absolute;
+      left: 102.5mm;
+      top: 4mm;
+      font-size: 11px;
+      color: #64748b;
+      background: white;
+      padding: 2px 0;
+    }
+    .scissors-bottom {
+      position: absolute;
+      left: 102.5mm;
+      bottom: 4mm;
+      font-size: 11px;
+      color: #64748b;
+      background: white;
+      padding: 2px 0;
+    }
+
+    /* PAKSA PENGATURAN PRINTER A4 NO-MARGIN */
+    @media print {
+      @page {
+        size: A4 portrait !important;
+        margin: 0mm !important;
+      }
+      html, body {
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .no-print { display: none !important; }
+      .a4-page { 
+        box-shadow: none !important; 
+        width: 210mm !important; 
+        height: 297mm !important; 
+        border-radius: 0 !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+      }
+    }
+  </style>
+</head>
+<body class="text-slate-800 pb-12">
+
+  <!-- Header App Responsive -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-50 no-print">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <img src="https://lh3.googleusercontent.com/d/1ftvWwCQQNGF1VMjozqGELded2RZa01ob" class="w-8 h-8 md:w-9 md:h-9 object-contain" alt="Logo BGN" />
+        <div>
+          <h1 class="font-bold text-slate-900 text-xs md:text-sm leading-tight">Label SPPG Panjatan 2</h1>
+          <p class="text-[10px] md:text-[11px] text-slate-500">by Fadlan Kharisma</p>
+        </div>
+      </div>
+      <button onclick="window.print()" class="theme-bg text-white text-xs font-semibold px-3 py-2 md:px-4 md:py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        <span>Cetak Label</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 mt-4 md:mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Form Controls (Kiri / Atas) -->
+    <div class="lg:col-span-4 space-y-4 no-print">
+      
+      <!-- Upload Box -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <label class="block font-bold text-slate-800 mb-2 text-xs uppercase tracking-wider">1. Upload File SPK (PDF)</label>
+        <input type="file" id="pdfUpload" accept="application/pdf" multiple class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-lg" />
+        <p class="text-[11px] text-slate-400 mt-1.5">Daftar Kloter I & II akan terisi otomatis dari PDF.</p>
+      </div>
+
+      <!-- Detail Form Header -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <h2 class="font-bold text-slate-800 text-xs uppercase tracking-wider border-b pb-2">2. Informasi Sampel Fisik</h2>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 mb-1">Menu Makanan</label>
+          <textarea id="inputMenu" rows="2" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 focus:outline-none">Menu</textarea>
+        </div>
+
+        <!-- Date & Time Pickers -->
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Tgl Penyimpanan</label>
+            <input type="date" id="inputTglSimpan" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Tgl Kadaluarsa</label>
+            <input type="date" id="inputTglExpired" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Jam Penyimpanan</label>
+            <input type="time" id="inputJam" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 focus:outline-none" value="10:00">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Petugas</label>
+            <input type="text" id="inputPetugas" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 focus:outline-none font-medium" value="Ana Febriani, A.Md.Gz">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 mb-1">Total PM (Otomatis dari PDF)</label>
+          <input type="number" id="inputTotalPM" class="w-full text-xs font-bold border border-slate-200 rounded-lg p-2 bg-slate-50 theme-text" readonly placeholder="0">
+        </div>
+      </div>
+
+      <!-- Pemilih Warna Mejikuhibiniu (Ditaruh Paling Bawah) -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <label class="block font-bold text-slate-800 mb-2 text-xs uppercase tracking-wider">3. Pilih Tema Warna Label</label>
+        <div class="flex items-center justify-between gap-1 pt-1">
+          <button onclick="changeTheme('merah')" class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-red-600 hover:scale-110 active:scale-95 transition shadow-sm border-2 border-white" title="Merah"></button>
+          <button onclick="changeTheme('jingga')" class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-amber-500 hover:scale-110 active:scale-95 transition shadow-sm border-2 border-white" title="Jingga"></button>
+          <button onclick="changeTheme('kuning')" class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-yellow-400 hover:scale-110 active:scale-95 transition shadow-sm border-2 border-white" title="Kuning"></button>
+          <button onclick="changeTheme('hijau')" class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-emerald-600 hover:scale-110 active:scale-95 transition shadow-sm border-2 border-white" title="Hijau"></button>
+          <button onclick="changeTheme('biru')" class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-blue-600 hover:scale-110 active:scale-95 transition shadow-sm border-2 border-white" title="Biru"></button>
+          <button onclick="changeTheme('nila')" class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-indigo-700 hover:scale-110 active:scale-95 transition shadow-sm border-2 border-white" title="Nila"></button>
+          <button onclick="changeTheme('ungu')" class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-purple-600 hover:scale-110 active:scale-95 transition shadow-sm border-2 border-white" title="Ungu"></button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tampilan Kertas HVS Utuh (Responsif di HP & Laptop) -->
+    <div class="lg:col-span-8 flex flex-col items-center overflow-x-auto pb-6">
+      <p class="text-xs text-slate-500 mb-2 no-print self-start lg:self-center">Pratinjau Kertas A4/HVS (Presisi Center di Area Potong 105mm)</p>
+      
+      <!-- Lembar A4 Utuh -->
+      <div id="printArea" class="a4-page">
+
+        <!-- Garis Potong Tengah + Simbol Gunting -->
+        <div class="cut-line"></div>
+        <div class="scissors-top">✂</div>
+        <div class="scissors-bottom">✂</div>
+
+        <!-- Area Cetak Label (Di Tengah-Tengah 1/2 HVS Kiri) -->
+        <div class="left-half">
+          <div>
+            <!-- HEADER LAYOUT FISIK BERWARNA MEJIKUHIBINIU -->
+            <div class="border-2 theme-border rounded-xl p-2.5 theme-bg-light mb-2 relative overflow-hidden">
+              
+              <!-- Row 1: Logo Drive Thumbnail & Menu -->
+              <div class="flex gap-2 items-center mb-1.5 border-b theme-border pb-1.5">
+                <img src="https://lh3.googleusercontent.com/d/1ftvWwCQQNGF1VMjozqGELded2RZa01ob" class="w-8 h-8 object-contain flex-shrink-0" alt="Logo" />
+                <div id="viewMenu" class="text-[10px] font-semibold text-slate-900 leading-tight">
+                  Nasi putih, Chicken katsu, Tahu pong, Mix vegetable, Jeruk sunkist
+                </div>
+              </div>
+
+              <!-- Nama Hari Besar & Label Unit -->
+              <div class="flex justify-between items-center mb-2">
+                <h2 id="viewHari" class="text-lg font-extrabold theme-text tracking-wider uppercase">RABU</h2>
+                <span class="text-[9px] font-bold theme-text theme-bg-light px-1.5 py-0.5 rounded border theme-border">
+                  SPPG PANJATAN 002
+                </span>
+              </div>
+
+              <!-- Box Input Fisik -->
+              <div class="space-y-1 text-[9px]">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-700">Tgl Simpan :</span>
+                  <div id="viewTglSimpan" class="bg-white border theme-border rounded-full px-2.5 py-0.5 font-bold text-slate-800 text-right">-</div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-700">Tgl Kadaluarsa :</span>
+                  <div id="viewTglExpired" class="bg-white border theme-border rounded-full px-2.5 py-0.5 font-bold text-slate-800 text-right">-</div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-700">Jam Simpan :</span>
+                  <div id="viewJam" class="bg-white border theme-border rounded-full px-2.5 py-0.5 font-bold text-slate-800 text-right">10.00 WIB</div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-700">Petugas :</span>
+                  <div id="viewPetugas" class="bg-white border theme-border rounded-full px-2.5 py-0.5 font-bold text-slate-800 text-right truncate max-w-[140px]">Ana Febriani, A.Md.Gz</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DAFTAR PENGIRIMAN MBG -->
+            <div class="border border-slate-300 rounded-lg p-2 bg-white space-y-1.5">
+              
+              <div class="flex justify-between items-center border-b border-slate-300 pb-1">
+                <h3 class="font-extrabold text-[10px] text-slate-800 uppercase tracking-wide">DAFTAR PENGIRIMAN MBG</h3>
+                <span class="text-[9px] font-bold theme-text">Total PM: <span id="viewTotalPM">0</span></span>
+              </div>
+
+              <!-- KLOTER I -->
+              <div>
+                <div class="font-extrabold text-[10px] text-slate-900 mb-0.5 underline">KLOTER I</div>
+                <ol id="listKloter1" class="list-decimal list-inside text-[9px] space-y-0.5 text-slate-800 leading-tight">
+                  <li>Upload PDF untuk memuat daftar...</li>
+                </ol>
+              </div>
+
+              <!-- KLOTER II -->
+              <div class="pt-1.5 border-t border-slate-200">
+                <div class="font-extrabold text-[10px] text-slate-900 mb-0.5 underline">KLOTER II</div>
+                <ol id="listKloter2" class="list-decimal list-inside text-[9px] space-y-0.5 text-slate-800 leading-tight">
+                  <li>Upload PDF untuk memuat daftar...</li>
+                </ol>
+              </div>
+
+            </div>
+          </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // Palet Warna Mejikuhibiniu
+    const themes = {
+      merah: { primary: '#dc2626', hover: '#b91c1c', light: '#fef2f2', border: '#fca5a5', text: '#991b1b' },
+      jingga: { primary: '#d97706', hover: '#b45309', light: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+      kuning: { primary: '#eab308', hover: '#ca8a04', light: '#fefce8', border: '#fde047', text: '#854d0e' },
+      hijau: { primary: '#059669', hover: '#047857', light: '#ecfdf5', border: '#6ee7b7', text: '#065f46' },
+      biru: { primary: '#2563eb', hover: '#1d4ed8', light: '#eff6ff', border: '#93c5fd', text: '#1e40af' },
+      nila: { primary: '#4338ca', hover: '#3730a3', light: '#eef2ff', border: '#a5b4fc', text: '#312e81' },
+      ungu: { primary: '#9333ea', hover: '#7e22ce', light: '#faf5ff', border: '#d8b4fe', text: '#6b21a8' }
+    };
+
+    function changeTheme(colorName) {
+      const theme = themes[colorName];
+      if (!theme) return;
+      
+      const root = document.documentElement;
+      root.style.setProperty('--primary', theme.primary);
+      root.style.setProperty('--primary-hover', theme.hover);
+      root.style.setProperty('--primary-light', theme.light);
+      root.style.setProperty('--primary-border', theme.border);
+      root.style.setProperty('--primary-text', theme.text);
+    }
+
+    // Helper Format Tanggal Indonesia
+    const namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    function formatTglIndo(dateString) {
+      if (!dateString) return { text: '-', hari: '-' };
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return { text: dateString, hari: '-' };
+      
+      const hari = namaHari[d.getDay()];
+      const tgl = d.getDate();
+      const bulan = namaBulan[d.getMonth()];
+      const thn = d.getFullYear();
+      
+      return {
+        text: `${hari}, ${tgl} ${bulan} ${thn}`,
+        hari: hari
+      };
+    }
+
+    // Set Default Date
+    const today = new Date();
+    const expDate = new Date();
+    expDate.setDate(today.getDate() + 2);
+
+    const toInputFormat = (d) => d.toISOString().split('T')[0];
+    
+    document.getElementById('inputTglSimpan').value = toInputFormat(today);
+    document.getElementById('inputTglExpired').value = toInputFormat(expDate);
+
+    function updateDateDisplays() {
+      const simpanObj = formatTglIndo(document.getElementById('inputTglSimpan').value);
+      const expObj = formatTglIndo(document.getElementById('inputTglExpired').value);
+      
+      document.getElementById('viewTglSimpan').innerText = simpanObj.text;
+      document.getElementById('viewTglExpired').innerText = expObj.text;
+      document.getElementById('viewHari').innerText = simpanObj.hari.toUpperCase();
+    }
+    updateDateDisplays();
+
+    document.getElementById('inputTglSimpan').addEventListener('change', updateDateDisplays);
+    document.getElementById('inputTglExpired').addEventListener('change', updateDateDisplays);
+    
+    document.getElementById('inputJam').addEventListener('input', (e) => {
+      document.getElementById('viewJam').innerText = e.target.value ? e.target.value.replace(':', '.') + ' WIB' : '-';
+    });
+
+    document.getElementById('inputPetugas').addEventListener('input', (e) => {
+      document.getElementById('viewPetugas').innerText = e.target.value || '-';
+    });
+
+    document.getElementById('inputMenu').addEventListener('input', (e) => {
+      document.getElementById('viewMenu').innerText = e.target.value || '-';
+    });
+
+    // Extract PDF SPK
+    document.getElementById('pdfUpload').addEventListener('change', async (e) => {
+      const files = e.target.files;
+      if (!files.length) return;
+
+      let kloter1 = [];
+      let kloter2 = [];
+      let totalPM = 0;
+
+      for (let file of files) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+
+          const linesMap = {};
+          textContent.items.forEach(item => {
+            if (!item.str || !item.str.trim()) return;
+            const y = Math.round(item.transform[5] / 4) * 4;
+            if (!linesMap[y]) linesMap[y] = [];
+            linesMap[y].push({ x: item.transform[4], text: item.str.trim() });
+          });
+
+          const sortedYs = Object.keys(linesMap).sort((a, b) => b - a);
+          let pageTextFull = textContent.items.map(i => i.str).join(" ");
+          let isKloter2Page = pageTextFull.includes("KLOTER 2");
+
+          sortedYs.forEach(y => {
+            const lineItems = linesMap[y].sort((a, b) => a.x - b.x).map(i => i.text);
+            const lineStr = lineItems.join(" ");
+
+            if (lineStr.includes("SURAT PERINTAH") || lineStr.includes("NAMA LOKASI") || lineStr.includes("TOTAL") || lineStr.includes("Alamat") || lineStr.includes("BADAN GIZI")) {
+              return;
+            }
+
+            const cleanItems = lineItems.filter(item => item !== '|' && item !== '');
+            const numIndices = [];
+            cleanItems.forEach((p, idx) => {
+              if (/^\d+$/.test(p)) numIndices.push(idx);
+            });
+
+            if (numIndices.length >= 3) {
+              const porsiBesarIdx = numIndices[numIndices.length - 3];
+              const jumlahIdx = numIndices[numIndices.length - 1];
+              const jumlahVal = parseInt(cleanItems[jumlahIdx]);
+
+              let startIdx = 0;
+              if (numIndices[0] === 0 && numIndices.length >= 4) {
+                startIdx = 1;
+              }
+
+              const locTokens = cleanItems.slice(startIdx, porsiBesarIdx);
+              const locName = locTokens.join(" ").replace(/\|/g, "").trim();
+
+              if (locName && !isNaN(jumlahVal) && jumlahVal > 0 && locName.toUpperCase() !== "TOTAL") {
+                totalPM += jumlahVal;
+                const formattedItem = `${locName} (${jumlahVal})`;
+                if (isKloter2Page) {
+                  kloter2.push(formattedItem);
+                } else {
+                  kloter1.push(formattedItem);
+                }
+              }
+            }
+          });
+        }
+      }
+
+      renderList('listKloter1', kloter1);
+      renderList('listKloter2', kloter2);
+
+      document.getElementById('inputTotalPM').value = totalPM;
+      document.getElementById('viewTotalPM').innerText = totalPM.toLocaleString('id-ID');
+    });
+
+    function renderList(listId, items) {
+      const el = document.getElementById(listId);
+      if (!items || items.length === 0) {
+        el.innerHTML = '<li>Kosong</li>';
+        return;
+      }
+      el.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+    }
+  </script>
+</body>
+</html>

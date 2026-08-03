@@ -279,12 +279,10 @@
             </div>
           </div>
 
-          </div>
         </div>
-
       </div>
-    </div>
 
+    </div>
   </main>
 
   <script>
@@ -395,34 +393,50 @@
 
           const sortedYs = Object.keys(linesMap).sort((a, b) => b - a);
           let pageTextFull = textContent.items.map(i => i.str).join(" ");
+          
+          // Deteksi halaman kloter
           let isKloter2Page = pageTextFull.includes("KLOTER 2");
 
           sortedYs.forEach(y => {
             const lineItems = linesMap[y].sort((a, b) => a.x - b.x).map(i => i.text);
             const lineStr = lineItems.join(" ");
 
-            if (lineStr.includes("SURAT PERINTAH") || lineStr.includes("NAMA LOKASI") || lineStr.includes("TOTAL") || lineStr.includes("Alamat") || lineStr.includes("BADAN GIZI")) {
+            // Filter baris yang tidak relevan (Header Tabel dsb)
+            if (lineStr.includes("SURAT PERINTAH") || lineStr.includes("NAMA LOKASI") || 
+                lineStr.includes("TOTAL") || lineStr.includes("Alamat") || 
+                lineStr.includes("BADAN GIZI") || lineStr.includes("SURAT JALAN") || 
+                lineStr.includes("Jam Sampai") || lineStr.includes("NO")) {
               return;
             }
 
             const cleanItems = lineItems.filter(item => item !== '|' && item !== '');
             const numIndices = [];
+            
             cleanItems.forEach((p, idx) => {
-              if (/^\d+$/.test(p)) numIndices.push(idx);
+              // Menangkap item yang murni berupa angka
+              if (/^\d+$/.test(p.trim())) numIndices.push(idx);
             });
 
+            // Pada format baru, kita perlu menangkap Porsi Besar dan Porsi Kecil
             if (numIndices.length >= 3) {
-              const porsiBesarIdx = numIndices[numIndices.length - 3];
-              const jumlahIdx = numIndices[numIndices.length - 1];
-              const jumlahVal = parseInt(cleanItems[jumlahIdx]);
+              const porsiBesarIdx = numIndices[numIndices.length - 2];
+              const porsiKecilIdx = numIndices[numIndices.length - 1];
+
+              const porsiBesar = parseInt(cleanItems[porsiBesarIdx]);
+              const porsiKecil = parseInt(cleanItems[porsiKecilIdx]);
+              
+              // Total PM per baris adalah penjumlahan porsi besar dan kecil
+              const jumlahVal = porsiBesar + porsiKecil;
 
               let startIdx = 0;
-              if (numIndices[0] === 0 && numIndices.length >= 4) {
+              // Jika data pertama di baris adalah Nomor (NO)
+              if (numIndices[0] === 0) {
                 startIdx = 1;
               }
 
+              // Gabungkan nama lokasi beserta PIC (sebagai fallback agar tidak kehilangan data jika format merged)
               const locTokens = cleanItems.slice(startIdx, porsiBesarIdx);
-              const locName = locTokens.join(" ").replace(/\|/g, "").trim();
+              const locName = locTokens.join(" ").trim();
 
               if (locName && !isNaN(jumlahVal) && jumlahVal > 0 && locName.toUpperCase() !== "TOTAL") {
                 totalPM += jumlahVal;

@@ -366,7 +366,7 @@
       document.getElementById('viewMenu').innerText = e.target.value || '-';
     });
 
-    // Extract PDF SPK
+    // Extract PDF SPK dengan Logika Analisis Jarak Spasi Horizontal (X-Gap)
     document.getElementById('pdfUpload').addEventListener('change', async (e) => {
       const files = e.target.files;
       if (!files.length) return;
@@ -386,66 +386,118 @@
           const linesMap = {};
           textContent.items.forEach(item => {
             if (!item.str || !item.str.trim()) return;
+            // Rounding koordinat Y untuk menangkap teks dalam satu garis visual (Toleransi 4pt)
             const y = Math.round(item.transform[5] / 4) * 4;
             if (!linesMap[y]) linesMap[y] = [];
             linesMap[y].push({ x: item.transform[4], text: item.str.trim() });
           });
 
+          // Urutkan Y dari atas halaman ke bawah
           const sortedYs = Object.keys(linesMap).sort((a, b) => b - a);
           let pageTextFull = textContent.items.map(i => i.str).join(" ");
-          
-          // Deteksi halaman kloter
           let isKloter2Page = pageTextFull.includes("KLOTER 2");
 
-          sortedYs.forEach(y => {
-            const lineItems = linesMap[y].sort((a, b) => a.x - b.x).map(i => i.text);
-            const lineStr = lineItems.join(" ");
+          let pendingLocation = [];
 
-            // Filter baris yang tidak relevan (Header Tabel dsb)
+          sortedYs.forEach(y => {
+            // Urutkan elemen baris horizontal berdasarkan koordinat X
+            const items = linesMap[y]
+              .filter(i => i.text !== '|' && i.text.trim() !== '')
+              .sort((a, b) => a.x - b.x); 
+            
+            if (items.length === 0) return;
+
+            const lineStr = items.map(i => i.text).join(" ").toUpperCase();
+
+            // Saring dan abaikan header, footer, atau baris tidak relevan
             if (lineStr.includes("SURAT PERINTAH") || lineStr.includes("NAMA LOKASI") || 
-                lineStr.includes("TOTAL") || lineStr.includes("Alamat") || 
+                lineStr.includes("TOTAL") || lineStr.includes("ALAMAT") || 
                 lineStr.includes("BADAN GIZI") || lineStr.includes("SURAT JALAN") || 
-                lineStr.includes("Jam Sampai") || lineStr.includes("NO")) {
+                lineStr.includes("JAM SAMPAI") || lineStr === "NO" || lineStr.includes("TANGGAL SURAT")) {
               return;
             }
 
-            const cleanItems = lineItems.filter(item => item !== '|' && item !== '');
+            // Identifikasi teks yang sepenuhnya berupa angka
             const numIndices = [];
-            
-            cleanItems.forEach((p, idx) => {
-              // Menangkap item yang murni berupa angka
-              if (/^\d+$/.test(p.trim())) numIndices.push(idx);
+            items.forEach((item, idx) => {
+              if (/^\d+$/.test(item.text.replace(/[.\s]/g, ''))) numIndices.push(idx);
             });
 
-            // Pada format baru, kita perlu menangkap Porsi Besar dan Porsi Kecil
-            if (numIndices.length >= 3) {
+            // LOGIKA BARIS DATA UTAMA: Memiliki setidaknya Porsi Besar & Porsi Kecil di akhir
+            if (numIndices.length >= 2) {
               const porsiBesarIdx = numIndices[numIndices.length - 2];
               const porsiKecilIdx = numIndices[numIndices.length - 1];
-
-              const porsiBesar = parseInt(cleanItems[porsiBesarIdx]);
-              const porsiKecil = parseInt(cleanItems[porsiKecilIdx]);
               
-              // Total PM per baris adalah penjumlahan porsi besar dan kecil
+              const porsiBesar = parseInt(items[porsiBesarIdx].text.replace(/[.\s]/g, ''));
+              const porsiKecil = parseInt(items[porsiKecilIdx].text.replace(/[.\s]/g, ''));
+              
+              if (isNaN(porsiBesar) || isNaN(porsiKecil)) return;
+              
               const jumlahVal = porsiBesar + porsiKecil;
 
               let startIdx = 0;
-              // Jika data pertama di baris adalah Nomor (NO)
+              let no_x = 40; // Default Koordinat X untuk kolom Nomor
+              
+              // Jika index pertama array adalah angka, asumsikan itu adalah kolom "NO"
               if (numIndices[0] === 0) {
                 startIdx = 1;
+                no_x = items[0].x;
               }
 
-              // Gabungkan nama lokasi beserta PIC (sebagai fallback agar tidak kehilangan data jika format merged)
-              const locTokens = cleanItems.slice(startIdx, porsiBesarIdx);
-              const locName = locTokens.join(" ").trim();
+              // Ambil blok teks yang berada di antara kolom NO dan PORSI BESAR
+              const middleItems = items.slice(startIdx, porsiBesarIdx);
+              let locTokens = [];
 
-              if (locName && !isNaN(jumlahVal) && jumlahVal > 0 && locName.toUpperCase() !== "TOTAL") {
+              if (middleItems.length > 0) {
+                let maxGap = 0;
+                let splitIndex = middleItems.length;
+
+                // Hitung gap (spasi horizontal terbesar) untuk mendeteksi batas kolom LOKASI vs PIC
+                for (let i = 0; i < middleItems.length - 1; i++) {
+                  const gap = middleItems[i+1].x - middleItems[i].x;
+                  if (gap > maxGap) {
+                    maxGap = gap;
+                    splitIndex = i + 1;
+                  }
+                }
+
+                if (maxGap > 30) {
+                  // Ada gap besar menandakan pemisahan kolom berhasil
+                  locTokens = middleItems.slice(0, splitIndex);
+                } else {
+                  // Jika tidak ada gap, periksa apakah posisinya dekat kolom nomor (Lokasi) atau jauh (PIC)
+                  if (middleItems[0].x - no_x < 100) {
+                     locTokens = middleItems; // NAMA LOKASI
+                  } else {
+                     locTokens = []; // PIC (Artinya NAMA LOKASI ada di baris atasnya)
+                  }
+                }
+              }
+
+              const locPart = locTokens.map(i => i.text).join(" ").trim();
+              
+              // Gabungkan potongan lokasi jika terdapat nama panjang yang terpisah-pisah di atas baris angka
+              let fullLocation = [...pendingLocation, locPart].filter(Boolean).join(" ");
+
+              if (fullLocation && !isNaN(jumlahVal) && jumlahVal > 0) {
                 totalPM += jumlahVal;
-                const formattedItem = `${locName} (${jumlahVal})`;
+                const formattedItem = `${fullLocation} (${jumlahVal})`;
                 if (isKloter2Page) {
                   kloter2.push(formattedItem);
                 } else {
                   kloter1.push(formattedItem);
                 }
+              }
+
+              // Bersihkan cache nama panjang untuk pembacaan baris berikutnya
+              pendingLocation = [];
+              
+            } else if (numIndices.length === 0) {
+              // LOGIKA BARIS SAMBUNGAN: Teks murni tanpa angka sama sekali
+              // Hanya ambil teks yang secara mendatar terletak di rentang kolom Kiri (< koordinat 200)
+              const textItems = items.filter(i => i.x < 200).map(i => i.text);
+              if (textItems.length > 0) {
+                pendingLocation.push(textItems.join(" ").trim());
               }
             }
           });

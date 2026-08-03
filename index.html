@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Label Sampel MBG - SPPG Panjatan 2</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #e2e8f0; }
@@ -135,9 +134,9 @@
       
       <!-- Upload Box -->
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <label class="block font-bold text-slate-800 mb-2 text-xs uppercase tracking-wider">1. Upload File SPK (PDF)</label>
-        <input type="file" id="pdfUpload" accept="application/pdf" multiple class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-lg" />
-        <p class="text-[11px] text-slate-400 mt-1.5">Daftar Kloter I & II akan terisi otomatis dari PDF.</p>
+        <label class="block font-bold text-slate-800 mb-2 text-xs uppercase tracking-wider">1. Upload File SPK (CSV)</label>
+        <input type="file" id="csvUpload" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer border border-slate-200 rounded-lg" />
+        <p class="text-[11px] text-slate-400 mt-1.5">Daftar Kloter I & II akan terisi otomatis dari data CSV.</p>
       </div>
 
       <!-- Detail Form Header -->
@@ -173,7 +172,7 @@
         </div>
 
         <div>
-          <label class="block text-[11px] font-semibold text-slate-600 mb-1">Total PM (Otomatis dari PDF)</label>
+          <label class="block text-[11px] font-semibold text-slate-600 mb-1">Total PM (Otomatis dari CSV)</label>
           <input type="number" id="inputTotalPM" class="w-full text-xs font-bold border border-slate-200 rounded-lg p-2 bg-slate-50 theme-text" readonly placeholder="0">
         </div>
       </div>
@@ -264,7 +263,7 @@
               <div>
                 <div class="font-extrabold text-[10px] text-slate-900 mb-0.5 underline">KLOTER I</div>
                 <ol id="listKloter1" class="list-decimal list-inside text-[9px] space-y-0.5 text-slate-800 leading-tight">
-                  <li>Upload PDF untuk memuat daftar...</li>
+                  <li>Upload CSV untuk memuat daftar...</li>
                 </ol>
               </div>
 
@@ -272,7 +271,7 @@
               <div class="pt-1.5 border-t border-slate-200">
                 <div class="font-extrabold text-[10px] text-slate-900 mb-0.5 underline">KLOTER II</div>
                 <ol id="listKloter2" class="list-decimal list-inside text-[9px] space-y-0.5 text-slate-800 leading-tight">
-                  <li>Upload PDF untuk memuat daftar...</li>
+                  <li>Upload CSV untuk memuat daftar...</li>
                 </ol>
               </div>
 
@@ -286,8 +285,6 @@
   </main>
 
   <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
     // Palet Warna Mejikuhibiniu
     const themes = {
       merah: { primary: '#dc2626', hover: '#b91c1c', light: '#fef2f2', border: '#fca5a5', text: '#991b1b' },
@@ -366,96 +363,65 @@
       document.getElementById('viewMenu').innerText = e.target.value || '-';
     });
 
-    // Extract PDF SPK dengan Logika Jendela Kordinat Kolom (X-Windowing)
-    document.getElementById('pdfUpload').addEventListener('change', async (e) => {
-      const files = e.target.files;
-      if (!files.length) return;
+    // Pengekstrak CSV (Cepat, Ringan, dan Presisi)
+    document.getElementById('csvUpload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-      let kloter1Obj = [];
-      let kloter2Obj = [];
-      let totalPM = 0;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const text = event.target.result;
+        // Memecah teks per baris (mendukung newline standar maupun Windows)
+        const lines = text.split(/\r?\n/);
+        
+        if(lines.length < 2) return; // Mengabaikan jika file kosong atau hanya header
 
-      for (let file of files) {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        // Ambil nama kolom untuk mendeteksi posisinya
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        
+        // Deteksi dinamis posisi indeks kolom berdasarkan kata kunci
+        const nameIdx = headers.findIndex(h => h.includes('nama'));
+        const kloterIdx = headers.findIndex(h => h.includes('kloter'));
+        const jumlahIdx = headers.findIndex(h => h.includes('jumlah'));
 
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-          const page = await pdf.getPage(pageNum);
-          const textContent = await page.getTextContent();
+        let kloter1 = [];
+        let kloter2 = [];
+        let totalPM = 0;
 
-          const linesMap = {};
-          textContent.items.forEach(item => {
-            if (!item.str || !item.str.trim()) return;
-            // Rounding koordinat Y untuk menangkap teks dalam satu garis horizontal
-            const y = Math.round(item.transform[5] / 4) * 4;
-            if (!linesMap[y]) linesMap[y] = [];
-            linesMap[y].push({ x: item.transform[4], text: item.str.trim() });
-          });
-
-          // Urutkan Y dari atas halaman ke bawah
-          const sortedYs = Object.keys(linesMap).sort((a, b) => b - a);
-          let pageTextFull = textContent.items.map(i => i.str).join(" ");
-          let isKloter2Page = pageTextFull.includes("KLOTER 2");
+        // Looping isi baris data dimulai setelah baris header
+        for(let i = 1; i < lines.length; i++) {
+          if(!lines[i].trim()) continue;
           
-          let targetList = isKloter2Page ? kloter2Obj : kloter1Obj;
+          // Memecah kolom dengan Regex untuk menghindari bug jika ada tanda koma (,) di dalam nama yang diapit kutipan
+          const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+          
+          // Mengambil nilai dan membersihkan tanda kutip jika ada
+          const rawName = cols[nameIdx] ? cols[nameIdx].replace(/(^"|"$)/g, '').trim() : "Tidak Diketahui";
+          const rawKloter = cols[kloterIdx] ? cols[kloterIdx].replace(/(^"|"$)/g, '').trim().toUpperCase() : "";
+          const rawJumlah = cols[jumlahIdx] ? parseInt(cols[jumlahIdx].replace(/(^"|"$)/g, '').trim()) : 0;
 
-          sortedYs.forEach(y => {
-            // Urutkan teks di baris ini dari kiri ke kanan
-            const items = linesMap[y]
-              .filter(i => i.text !== '|' && i.text.trim() !== '')
-              .sort((a, b) => a.x - b.x); 
+          if (!isNaN(rawJumlah) && rawJumlah > 0) {
+            const formattedItem = `${rawName} (${rawJumlah})`;
+            totalPM += rawJumlah;
             
-            if (items.length === 0) return;
-            const lineStr = items.map(i => i.text).join(" ").toUpperCase();
-
-            // Abaikan Header, Footer, dan baris yang tidak relevan
-            if (lineStr.includes("SURAT PERINTAH") || lineStr.includes("NAMA LOKASI") || 
-                lineStr.includes("TOTAL") || lineStr.includes("ALAMAT") || 
-                lineStr.includes("BADAN GIZI") || lineStr.includes("SURAT JALAN") || 
-                lineStr.includes("JAM SAMPAI") || lineStr === "NO" || lineStr.includes("TANGGAL SURAT")) {
-              return;
+            // Pengalokasian berdasarkan indikator kloter 
+            if (rawKloter.includes("2") || rawKloter.includes("II")) {
+              kloter2.push(formattedItem);
+            } else {
+              kloter1.push(formattedItem);
             }
-
-            // 1. Ambil HANYA teks di dalam batas koordinat Kolom NAMA LOKASI (X antara 45 hingga 220)
-            // Ini akan membuang kolom "NO" (kiri) dan kolom "PIC" (kanan)
-            const locTokens = items.filter(i => i.x > 45 && i.x < 220).map(i => i.text.trim());
-            const locText = locTokens.join(" ").trim();
-
-            // 2. Ambil angka di kolom Porsi (X di atas 250)
-            const numItems = items.filter(i => i.x > 250 && /^\d+$/.test(i.text.replace(/[.\s]/g, '')));
-            const nums = numItems.map(i => parseInt(i.text.replace(/[.\s]/g, '')));
-
-            // 3. Logika Pemrosesan Baris
-            if (nums.length >= 2) {
-              // Jika ditemukan angka, berarti ini baris awal dari sebuah entri lokasi
-              const porsiBesar = nums[nums.length - 2];
-              const porsiKecil = nums[nums.length - 1];
-              const jumlahVal = porsiBesar + porsiKecil;
-
-              if (locText && !isNaN(jumlahVal) && jumlahVal > 0) {
-                targetList.push({ name: locText, total: jumlahVal });
-                totalPM += jumlahVal;
-              }
-            } else if (locText !== "") {
-              // Jika TIDAK ADA angka porsi di baris ini, tapi ada teks di Kolom Lokasi,
-              // berarti ini adalah sambungan/wrapping teks lokasi dari baris sebelumnya (misal: "CERME").
-              if (targetList.length > 0) {
-                targetList[targetList.length - 1].name += " " + locText;
-              }
-            }
-          });
+          }
         }
-      }
 
-      // Format array object kembali menjadi string untuk dirender di UI
-      const formatKloter1 = kloter1Obj.map(item => `${item.name} (${item.total})`);
-      const formatKloter2 = kloter2Obj.map(item => `${item.name} (${item.total})`);
-
-      renderList('listKloter1', formatKloter1);
-      renderList('listKloter2', formatKloter2);
-
-      document.getElementById('inputTotalPM').value = totalPM;
-      document.getElementById('viewTotalPM').innerText = totalPM.toLocaleString('id-ID');
+        renderList('listKloter1', kloter1);
+        renderList('listKloter2', kloter2);
+        
+        // Update input box dan teks total di antarmuka
+        document.getElementById('inputTotalPM').value = totalPM;
+        document.getElementById('viewTotalPM').innerText = totalPM.toLocaleString('id-ID');
+      };
+      
+      reader.readAsText(file); // Trigger pembacaan File
     });
 
     function renderList(listId, items) {
